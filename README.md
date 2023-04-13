@@ -21,7 +21,7 @@ Documentation
 Installation Instructions
 -------------------------
 
-1. Place the files in a directory called mapfield in the root of your SilverStripe installation
+1. Install with composer `composer require nathancox/embedfield`
 2. Visit yoursite.com/dev/build to rebuild the database
 
 Usage Overview
@@ -69,7 +69,7 @@ themes/mytheme/templates/nathancox/EmbedField/Model/EmbedObject_video.ss:
 ```html
 
 	<div class='flex-video self-sizing' style='padding-bottom:$AspectRatioHeight;'>
-		$HTML
+		$EmbedHTML
 	</div>
 
 ```

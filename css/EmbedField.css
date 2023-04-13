@@ -1,10 +1,7 @@
 .field.embed .form__field-holder {
-	background: #f1f3f6;
-	border: 1px solid #B3B3B3;
 	border-radius: 4px;
-	padding: 0;
-	width: 480px;
-	padding:15px;
+	padding: initial;
+	width: initial;
 }
 
 .field.embed img {
@@ -13,40 +10,40 @@
 }
 
 .field.embed em {
-	margin-top:10px;
-	color:#B7A403;
-	font-style:normal;
-	margin-left:115px;
-	display:block;
+	margin-top: 10px;
+	color: #B7A403;
+	font-style: normal;
+	margin-left: 115px;
+	display: block;
 }
 
 .field.embed .embed-thumbnail {
-	width:100px;
-	min-height:70px;
-	float:left;
-	display:inline-block;
+	width: 113px;
+	min-height: 79px;
+	float: left;
+	display: inline-block;
 
 }
 	.field.embed .embed-thumbnail.empty {
 	  box-shadow: 0 0 4px 0 #808080 inset;
-	  border-radius:4px;
-	  height:70px;
-	  opacity:0.5;
+	  border-radius: 4px;
+	  height: 70px;
+	  opacity: 0.5;
 	}
 
 	.field.embed img {
-		max-width:100%;
-		max-height:100px;
-		display:block;
+		max-width: 100%;
+		max-height: 100px;
+		display: block;
 	}
 
 
 .field.embed .fieldholder-small {
-	margin-left:115px;
+	margin-left: 130px;
 }
 
 .field.embed button.action {
-	margin-top: 10px;
+	margin-top: 16px;
 }
 
 .field.embed button.action:not(.btn-outline-primary) {
@@ -71,5 +68,5 @@
 }
 
 .field.embed .clear {
-	clear:both;
+	clear: both;
 }
