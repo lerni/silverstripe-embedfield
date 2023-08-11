@@ -97,10 +97,21 @@ class EmbedObject extends DataObject
                 $dom = new DOMDocument();
                 $dom->loadHTML($embed->html);
                 $iframe = $dom->getElementsByTagName("iframe");
-                $iframe->item(0)->setAttribute('loading', 'lazy');
-                $iframe->item(0)->setAttribute('title', $this->Title);
-
                 $iFrameSrc = $iframe->item(0)->getAttribute('src');
+                // lazy load anyways
+                $iframe->item(0)->setAttribute('loading', 'lazy');
+
+                // trim youtube embeds
+                if (str_contains($iFrameSrc, 'youtube')) {
+                    $iframe->item(0)->setAttribute('title', $this->Title);
+
+                    // set aspect ratio
+                    $iFrameWidth = $iframe->item(0)->getAttribute('width');
+                    $iframe->item(0)->removeAttribute('width');
+                    $iFrameHeight = $iframe->item(0)->getAttribute('height');
+                    $iframe->item(0)->removeAttribute('height');
+                    $iFrameStyle = 'width: 100%; aspect-ratio: ' . $iFrameWidth . '/' . $iFrameHeight . ' !important;';
+                    $iframe->item(0)->setAttribute('style', $iFrameStyle);
 
                     $url_parts = parse_url($iFrameSrc);
                     if (isset($url_parts['query'])) {
@@ -124,19 +135,20 @@ class EmbedObject extends DataObject
                         (isset($url_parts['host']) ? "{$url_parts['host']}" : '') .
                         (isset($url_parts['port']) ? ":{$url_parts['port']}" : '') .
                         (isset($url_parts['path']) ? "{$url_parts['path']}" : '') .
-                        $queryString .
+                        '?' . $queryString .
                         (isset($url_parts['fragment']) ? "#{$url_parts['fragment']}" : '');
 
-                $iframe->item(0)->setAttribute('src', $iFrameSrc);
-                $embed = $dom->saveXML($iframe->item(0));
+                    $iframe->item(0)->setAttribute('src', $iFrameSrc);
+                    $embed = $dom->saveHTML($iframe->item(0));
 
-                $this->IFrameSrc = (string) $iFrameSrc;
+                    $this->IFrameSrc = (string)$iFrameSrc;
+                }
             }
 
-            $this->EmbedHTML = (string) $embed;
-            $this->URL = (string) $info->url;
-            $this->Origin = (string) $info->providerUrl;
-            $this->WebPage = (string) $info->url;
+            $this->EmbedHTML = (string)$embed;
+            $this->URL = (string)$info->url;
+            $this->Origin = (string)$info->providerUrl;
+            $this->WebPage = (string)$info->url;
         } else {
             $this->sourceExists = false;
         }
