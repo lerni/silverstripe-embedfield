@@ -120,12 +120,24 @@ class EmbedObject extends DataObject
                         $params = [];
                     }
 
-                    $queryStringsFromConfig = $this->config()->get('queryStringsFromConfig');
-                    foreach ($queryStringsFromConfig as $key => $value) {
-                        $params[$key] = $value;
+                    $queryStrings = $this->config()->get('YTqueryStringsDefaults');
+                    if (is_array($queryStrings)) {
+                        foreach ($queryStrings as $key => $value) {
+                            $params[key($value)] = $value[key($value)];
+                        }
+                        $queryString =  http_build_query($params);
+                        $url_parts['query'] = $queryString;
+                    }
+
+                    $YTEnhancedPrivacy = $this->config()->get('YTEnhancedPrivacy');
+                    if ($YTEnhancedPrivacy) {
+                        $YTEnhancedPrivacyLink = $this->config()->get('YTEnhancedPrivacyLink');
+                        $url_parts['host'] = $YTEnhancedPrivacyLink;
                     }
 
                     $queryString =  http_build_query($params);
+
+                    $iFrameSrc = $this->unparse_url($url_parts);
 
                     $iFrameSrc = (isset($url_parts['scheme']) ? "{$url_parts['scheme']}:" : '') .
                         ((isset($url_parts['user']) || isset($url_parts['host'])) ? '//' : '') .
@@ -152,6 +164,21 @@ class EmbedObject extends DataObject
         } else {
             $this->sourceExists = false;
         }
+    }
+
+    function unparse_url($parsed_url)
+    {
+        $scheme   = isset($parsed_url['scheme']) ? $parsed_url['scheme'] . '://' : '';
+        $host     = isset($parsed_url['host']) ? $parsed_url['host'] : '';
+        $port     = isset($parsed_url['port']) ? ':' . $parsed_url['port'] : '';
+        $user     = isset($parsed_url['user']) ? $parsed_url['user'] : '';
+        $pass     = isset($parsed_url['pass']) ? ':' . $parsed_url['pass']  : '';
+        $pass     = ($user || $pass) ? "$pass@" : '';
+        $path     = isset($parsed_url['path']) ? $parsed_url['path'] : '';
+        $query    = isset($parsed_url['query']) ? '?' . $parsed_url['query'] : '';
+        $fragment = isset($parsed_url['fragment']) ? '#' . $parsed_url['fragment'] : '';
+
+        return "$scheme$user$pass$host$port$path$query$fragment";
     }
 
 
