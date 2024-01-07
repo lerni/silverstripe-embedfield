@@ -3,8 +3,9 @@
 namespace nathancox\EmbedField\Model;
 
 use DOMDocument;
-use SilverStripe\ORM\DataObject;
 use Embed\Embed;
+use SilverStripe\ORM\DataObject;
+use SilverStripe\ORM\FieldType\DBHTMLText;
 
 /**
  * Represents an oembed object.  Basically populated from oembed so the front end has quick access to properties.
@@ -44,14 +45,14 @@ class EmbedObject extends DataObject
 
     public $sourceExists = false;
 
-    function sourceExists()
+    public function sourceExists(): bool
     {
-        return ($this->ID != 0 || $this->sourceExists);
+        return ($this->isInDB() || $this->sourceExists);
     }
 
-    function updateFromURL($sourceURL = null)
+    public function updateFromURL($sourceURL = null): void
     {
-        if ($this->SourceURL) {
+        if (empty($sourceURL)) {
             $sourceURL = $this->SourceURL;
         }
         $embed = new Embed();
@@ -62,12 +63,12 @@ class EmbedObject extends DataObject
         $this->updateFromObject($info);
     }
 
-    function updateFromObject($info)
+    public function updateFromObject($info): void
     {
         // Previously this line checked width. Unsure if this was just to
-        // check if object was populated, or if width was of specific importence
+        // check if object was populated, or if width was of specific importance
         // Assuming the former and checking URL instead
-        if ($info && $info->url) {
+        if ($info?->url) {
             $this->sourceExists = true;
 
             $this->Title = $info->title;
@@ -85,7 +86,6 @@ class EmbedObject extends DataObject
 
             $this->ProviderURL = (string) $info->providerUrl;
             $this->ProviderName = $info->providerName;
-
 
             $this->AuthorURL = (string) $info->authorUrl;
             $this->AuthorName = $info->authorName;
@@ -191,28 +191,24 @@ class EmbedObject extends DataObject
      * Return the object's properties as an array
      * @return array
      */
-    function toArray()
+    public function toArray(): array
     {
         if ($this->ID == 0) {
             return [];
-        } else {
-
-            $array = $this->toMap();
-            unset($array['Created']);
-            unset($array['Modified']);
-            unset($array['ClassName']);
-            unset($array['RecordClassName']);
-            unset($array['ID']);
-            unset($array['SourceURL']);
-
-            return $array;
         }
+        $array = $this->toMap();
+        unset($array['Created']);
+        unset($array['Modified']);
+        unset($array['ClassName']);
+        unset($array['RecordClassName']);
+        unset($array['ID']);
+        unset($array['SourceURL']);
+        return $array;
     }
 
-    function onBeforeWrite()
+    public function onBeforeWrite(): void
     {
         parent::onBeforeWrite();
-
         if ($this->updateOnSave === true) {
             $this->updateFromURL($this->SourceURL);
             $this->updateOnSave = false;
@@ -220,7 +216,7 @@ class EmbedObject extends DataObject
     }
 
 
-    function forTemplate()
+    public function forTemplate(): ?DBHTMLText
     {
         if ($this->Type) {
             return $this->renderWith($this->ClassName . '_' . $this->Type);
@@ -232,8 +228,13 @@ class EmbedObject extends DataObject
      * This is used for making videos responsive.  It uses the video's actual dimensions to calculate the height needed for it's aspect ratio (when using this technique: http://alistapart.com/article/creating-intrinsic-ratios-for-video)
      * @return string 	Percentage for use in CSS
      */
-    function getAspectRatioHeight()
+    public function getAspectRatioHeight(): string
     {
+        $height = (int) $this->Height;
+        $width = (int) $this->Width;
+        if (empty($height) || empty($width)) {
+            return '';
+        }
         return ($this->Height / $this->Width) * 100 . '%';
     }
 }

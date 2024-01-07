@@ -3,11 +3,10 @@
 namespace nathancox\EmbedField\Forms;
 
 use SilverStripe\Forms\FormField;
-use SilverStripe\View\Requirements;
 use SilverStripe\Forms\TextField;
+use SilverStripe\View\Requirements;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Security\SecurityToken;
-use SilverStripe\Core\Convert;
 use SilverStripe\ORM\DataObjectInterface;
 use nathancox\EmbedField\Model\EmbedObject;
 
@@ -18,33 +17,24 @@ class EmbedField extends FormField
 {
     public $embedType = false;        // video, rich, link, photo
 
-    private static $allowed_actions = array(
+    private static $allowed_actions = [
         'update'
-    );
+    ];
 
-    protected $object;
-
-    /**
-     *
-     * @param string $name
-     * @param string $title
-     * @param string $value
-     */
-    public function __construct($name, $title = null, $value = null)
-    {
-        parent::__construct($name, $title, $value);
-    }
+    protected ?EmbedObject $object = null;
+    protected ?string $sourceURL = null;
 
     /**
      * Restrict what type of embed object
      * @param string   The embed type (false (any), video, rich, link or photo)
      */
-    function setEmbedType($type = false)
+    function setEmbedType($type = false): self
     {
         $this->embedType = $type;
+        return $this;
     }
 
-    public function FieldHolder($properties = array())
+    public function FieldHolder($properties = [])
     {
         Requirements::javascript('nathancox/embedfield: javascript/EmbedField.js');
         Requirements::css('nathancox/embedfield: css/EmbedField.css');
@@ -57,17 +47,19 @@ class EmbedField extends FormField
         $properties['ThumbnailTitle'] = '';
         $properties['ShowThumbnail'] = false;
 
-        $properties['SourceURL'] = TextField::create($this->getName() . '[sourceurl]', '', $this->object->SourceURL);
+        $sourceURL = $this->sourceURL ?? $this->object->SourceURL;
+
+        $properties['SourceURL'] = TextField::create($this->getName() . '[sourceurl]', '', $sourceURL);
         $properties['SourceURL']->setAttribute('data-update-url', $this->Link('update'));
-        $properties['SourceURL']->setAttribute('placeholder', 'http://');
-
-
+        $properties['SourceURL']->setAttribute('placeholder', 'https://');
 
         if ($this->object->ThumbnailURL) {
             $properties['ThumbnailURL'] = $this->object->ThumbnailURL;
             $properties['ThumbnailTitle'] = $this->object->Title;
             $properties['ShowThumbnail'] = true;
         }
+
+        $properties['EmbedObject'] = $this->object;
 
         $field = parent::FieldHolder($properties);
         return $field;
@@ -79,7 +71,7 @@ class EmbedField extends FormField
         return 'embed text';
     }
 
-    public function setValue($value, $data = null)
+    public function setValue($value, $data = null): self
     {
 
         if ($value instanceof EmbedObject) {
@@ -88,9 +80,8 @@ class EmbedField extends FormField
         }
         $this->object = EmbedObject::get()->byID($value);
 
-        parent::setValue($value);
+        return parent::setValue($value);
     }
-
 
     public function saveInto(DataObjectInterface $record)
     {
@@ -139,79 +130,68 @@ class EmbedField extends FormField
             $object->write();
         }
         $this->object = $object;
-
         $record->$name = $this->object->ID;
     }
 
     /**
-     * This is called by the javascript
+     * This is called by javascript
      */
     public function update(HTTPRequest $request)
     {
-
         if (!SecurityToken::inst()->checkRequest($request)) {
             return '';
         }
         $sourceURL = $request->postVar('URL');
+        $this->sourceURL = $sourceURL;
 
-        if (strlen($sourceURL)) {
-
-            $existingID = $this->Value();
-            $originalObject = EmbedObject::get()->byID($existingID);
-
-
-            if ($originalObject && $originalObject->SourceURL == $sourceURL) {
-                // nothing has changed
-                $object = $originalObject;
-            } else {
-                $existing = EmbedObject::get()->filter('SourceURL', $sourceURL)->first();
-                if ($existing) {
-                    // save URL as an existing object
-                    $object = clone $existing;
-                    $object->ID = 0;
-                    $object->sourceExists = true;
-                } else {
-                    // brand new source
-                    $object = EmbedObject::create();
-                    $object->SourceURL = $sourceURL;
-                    $object->updateFromURL();
-                }
+        if (!empty($sourceURL)) {
+            // new source
+            $object = EmbedObject::create();
+            $object->SourceURL = $sourceURL;
+            try {
+                $object->updateFromURL();
+            } catch (\Exception $e) {
+                return json_encode([
+                    'status' => 'invalidurl',
+                    'message' => '<a href="' . $sourceURL . '" target="_blank">' . $sourceURL . '</a> is not a valid source type.',
+                    'data' => []
+                ]);
             }
 
-            if ($object && $object->sourceExists()) {
+            if ($object?->sourceExists()) {
 
                 if ($this->embedType && $this->embedType != $object->Type) {
-                    return Convert::array2json(array(
+                    return json_encode([
                         'status' => 'invalidurl',
                         'message' => '<a href="' . $sourceURL . '" target="_blank">' . $sourceURL . '</a> is not a valid source type.',
-                        'data' => array()
-                    ));
+                        'data' => []
+                    ]);
                 }
 
-                return Convert::array2json(array(
+                return json_encode([
                     'status' => 'success',
                     'message' => '',
-                    'data' => array(
+                    'data' => [
                         'ThumbnailURL' => $object->ThumbnailURL,
                         'Width' => $object->Width,
                         'Height' => $object->Height,
                         'Title' => $object->Title
-                    )
-                ));
+                    ]
+                ]);
             } else {
-                return Convert::array2json(array(
+                return json_encode([
                     'status' => 'invalidurl',
                     'message' => '<a href="' . $sourceURL . '" target="_blank">' . $sourceURL . '</a> is not a valid embed source.',
-                    'data' => array()
-                ));
+                    'data' => []
+                ]);
             }
         } else {
 
-            return Convert::array2json(array(
+            return json_encode([
                 'status' => 'nourl',
                 'message' => '',
-                'data' => array()
-            ));
+                'data' => []
+            ]);
         }
     }
 }
