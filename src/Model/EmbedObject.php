@@ -69,98 +69,104 @@ class EmbedObject extends DataObject
         // check if object was populated, or if width was of specific importance
         // Assuming the former and checking URL instead
         if ($info?->url) {
-            $this->sourceExists = true;
+            $embed = (string) $info->code;
+            if (empty($embed)) {
+                $this->sourceExists = false;
+            } else {
+                $this->EmbedHTML = $embed;
+                $this->sourceExists = true;
 
-            $this->Title = $info->title;
+                $this->Title = $info->title;
 
-            // Several properties no longer supported. These can potentially be re-introduced
-            // by writing custom detectors: https://github.com/oscarotero/Embed#detectors
+                // Several properties no longer supported. These can potentially be re-introduced
+                // by writing custom detectors: https://github.com/oscarotero/Embed#detectors
 
-            $this->Type = $info->getOEmbed()->get('type') ? (string) $info->getOEmbed()->get('type') : '';
-            $this->Width = $info->getOEmbed()->get('width') ? (string) $info->getOEmbed()->get('width') : '';
-            $this->Height = $info->getOEmbed()->get('height') ? (string) $info->getOEmbed()->get('height') : '';
+                $this->Type = $info->getOEmbed()->get('type') ? (string) $info->getOEmbed()->get('type') : '';
+                $this->Width = $info->getOEmbed()->get('width') ? (string) $info->getOEmbed()->get('width') : '';
+                $this->Height = $info->getOEmbed()->get('height') ? (string) $info->getOEmbed()->get('height') : '';
 
-            $this->ThumbnailURL = (string) $info->image;
-            $this->ThumbnailWidth = $info->getOEmbed()->get('thumbnail_width') ? (string) $info->getOEmbed()->get('thumbnail_width') : '';
-            $this->ThumbnailHeight = $info->getOEmbed()->get('thumbnail_height') ? (string) $info->getOEmbed()->get('thumbnail_height') : '';
+                $this->ThumbnailURL = (string) $info->image;
+                $this->ThumbnailWidth = $info->getOEmbed()->get('thumbnail_width') ? (string) $info->getOEmbed()->get('thumbnail_width') : '';
+                $this->ThumbnailHeight = $info->getOEmbed()->get('thumbnail_height') ? (string) $info->getOEmbed()->get('thumbnail_height') : '';
 
-            $this->ProviderURL = (string) $info->providerUrl;
-            $this->ProviderName = $info->providerName;
+                $this->ProviderURL = (string) $info->providerUrl;
+                $this->ProviderName = $info->providerName;
 
-            $this->AuthorURL = (string) $info->authorUrl;
-            $this->AuthorName = $info->authorName;
+                $this->AuthorURL = (string) $info->authorUrl;
+                $this->AuthorName = $info->authorName;
 
-            $embed = $info->code;
+                $embed = $info->code;
 
-            if ($embed) {
+                if ($embed) {
 
-                $dom = new DOMDocument();
-                $dom->loadHTML($embed->html);
-                $iframe = $dom->getElementsByTagName("iframe");
-                $iFrameSrc = $iframe->item(0)->getAttribute('src');
-                // lazy load anyways
-                $iframe->item(0)->setAttribute('loading', 'lazy');
+                    $dom = new DOMDocument();
+                    $dom->loadHTML($embed->html);
+                    $iframe = $dom->getElementsByTagName("iframe");
+                    $iFrameSrc = $iframe->item(0)->getAttribute('src');
+                    // lazy load anyways
+                    $iframe->item(0)->setAttribute('loading', 'lazy');
 
-                // trim youtube embeds
-                if (str_contains($iFrameSrc, 'youtube')) {
-                    $iframe->item(0)->setAttribute('title', $this->Title);
+                    // trim youtube embeds
+                    if (str_contains($iFrameSrc, 'youtube')) {
+                        $iframe->item(0)->setAttribute('title', $this->Title);
 
-                    // set aspect ratio
-                    $iFrameWidth = $iframe->item(0)->getAttribute('width');
-                    $iframe->item(0)->removeAttribute('width');
-                    $iFrameHeight = $iframe->item(0)->getAttribute('height');
-                    $iframe->item(0)->removeAttribute('height');
-                    $iFrameStyle = 'width: 100%; aspect-ratio: ' . $iFrameWidth . '/' . $iFrameHeight . ' !important;';
-                    $iframe->item(0)->setAttribute('style', $iFrameStyle);
+                        // set aspect ratio
+                        $iFrameWidth = $iframe->item(0)->getAttribute('width');
+                        $iframe->item(0)->removeAttribute('width');
+                        $iFrameHeight = $iframe->item(0)->getAttribute('height');
+                        $iframe->item(0)->removeAttribute('height');
+                        $iFrameStyle = 'width: 100%; aspect-ratio: ' . $iFrameWidth . '/' . $iFrameHeight . ' !important;';
+                        $iframe->item(0)->setAttribute('style', $iFrameStyle);
 
-                    $url_parts = parse_url($iFrameSrc);
-                    if (isset($url_parts['query'])) {
-                        parse_str($url_parts['query'], $params);
-                    } else {
-                        $params = [];
-                    }
-
-                    $queryStrings = $this->config()->get('YTqueryStringsDefaults');
-                    if (is_array($queryStrings)) {
-                        foreach ($queryStrings as $key => $value) {
-                            $params[key($value)] = $value[key($value)];
+                        $url_parts = parse_url($iFrameSrc);
+                        if (isset($url_parts['query'])) {
+                            parse_str($url_parts['query'], $params);
+                        } else {
+                            $params = [];
                         }
+
+                        $queryStrings = $this->config()->get('YTqueryStringsDefaults');
+                        if (is_array($queryStrings)) {
+                            foreach ($queryStrings as $key => $value) {
+                                $params[key($value)] = $value[key($value)];
+                            }
+                            $queryString =  http_build_query($params);
+                            $url_parts['query'] = $queryString;
+                        }
+
+                        $YTEnhancedPrivacy = $this->config()->get('YTEnhancedPrivacy');
+                        if ($YTEnhancedPrivacy) {
+                            $YTEnhancedPrivacyLink = $this->config()->get('YTEnhancedPrivacyLink');
+                            $url_parts['host'] = $YTEnhancedPrivacyLink;
+                        }
+
                         $queryString =  http_build_query($params);
-                        $url_parts['query'] = $queryString;
+
+                        $iFrameSrc = $this->unparse_url($url_parts);
+
+                        $iFrameSrc = (isset($url_parts['scheme']) ? "{$url_parts['scheme']}:" : '') .
+                            ((isset($url_parts['user']) || isset($url_parts['host'])) ? '//' : '') .
+                            (isset($url_parts['user']) ? "{$url_parts['user']}" : '') .
+                            (isset($url_parts['pass']) ? ":{$url_parts['pass']}" : '') .
+                            (isset($url_parts['user']) ? '@' : '') .
+                            (isset($url_parts['host']) ? "{$url_parts['host']}" : '') .
+                            (isset($url_parts['port']) ? ":{$url_parts['port']}" : '') .
+                            (isset($url_parts['path']) ? "{$url_parts['path']}" : '') .
+                            '?' . $queryString .
+                            (isset($url_parts['fragment']) ? "#{$url_parts['fragment']}" : '');
+
+                        $iframe->item(0)->setAttribute('src', $iFrameSrc);
+                        $embed = $dom->saveHTML($iframe->item(0));
+
+                        $this->IFrameSrc = (string)$iFrameSrc;
                     }
-
-                    $YTEnhancedPrivacy = $this->config()->get('YTEnhancedPrivacy');
-                    if ($YTEnhancedPrivacy) {
-                        $YTEnhancedPrivacyLink = $this->config()->get('YTEnhancedPrivacyLink');
-                        $url_parts['host'] = $YTEnhancedPrivacyLink;
-                    }
-
-                    $queryString =  http_build_query($params);
-
-                    $iFrameSrc = $this->unparse_url($url_parts);
-
-                    $iFrameSrc = (isset($url_parts['scheme']) ? "{$url_parts['scheme']}:" : '') .
-                        ((isset($url_parts['user']) || isset($url_parts['host'])) ? '//' : '') .
-                        (isset($url_parts['user']) ? "{$url_parts['user']}" : '') .
-                        (isset($url_parts['pass']) ? ":{$url_parts['pass']}" : '') .
-                        (isset($url_parts['user']) ? '@' : '') .
-                        (isset($url_parts['host']) ? "{$url_parts['host']}" : '') .
-                        (isset($url_parts['port']) ? ":{$url_parts['port']}" : '') .
-                        (isset($url_parts['path']) ? "{$url_parts['path']}" : '') .
-                        '?' . $queryString .
-                        (isset($url_parts['fragment']) ? "#{$url_parts['fragment']}" : '');
-
-                    $iframe->item(0)->setAttribute('src', $iFrameSrc);
-                    $embed = $dom->saveHTML($iframe->item(0));
-
-                    $this->IFrameSrc = (string)$iFrameSrc;
                 }
-            }
 
-            $this->EmbedHTML = (string)$embed;
-            $this->URL = (string)$info->url;
-            $this->Origin = (string)$info->providerUrl;
-            $this->WebPage = (string)$info->url;
+                $this->EmbedHTML = (string)$embed;
+                $this->URL = (string)$info->url;
+                $this->Origin = (string)$info->providerUrl;
+                $this->WebPage = (string)$info->url;
+            }
         } else {
             $this->sourceExists = false;
         }
@@ -221,7 +227,7 @@ class EmbedObject extends DataObject
         if ($this->Type) {
             return $this->renderWith($this->ClassName . '_' . $this->Type);
         }
-        return false;
+        return null;
     }
 
     /**

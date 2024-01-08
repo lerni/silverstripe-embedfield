@@ -65,8 +65,7 @@ class EmbedField extends FormField
         return $field;
     }
 
-
-    public function Type()
+    public function Type(): string
     {
         return 'embed text';
     }
@@ -83,9 +82,8 @@ class EmbedField extends FormField
         return parent::setValue($value);
     }
 
-    public function saveInto(DataObjectInterface $record)
+    public function saveInto(DataObjectInterface $record): void
     {
-
         $val = $this->Value();        // array[sourceurl],[data] (as json)
 
         $name = $this->getName();
@@ -186,7 +184,6 @@ class EmbedField extends FormField
                 ]);
             }
         } else {
-
             return json_encode([
                 'status' => 'nourl',
                 'message' => '',
